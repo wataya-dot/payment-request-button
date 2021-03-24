@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Buy cool new product</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?version=3.52.1&features=fetch"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+  </head>
+  <body>
+    <section>
+      <div class="item">
+        <img src="https://i.imgur.com/EHyR2nP.png" alt="Stubborn-Attachments-Cover">
+        <p>Stubborn Attachments</p>
+        <p>price: 1000 yen</p>      
+      </div>
+    </section>
+    <section>
+      <div class="form">
+        <form action="/charge" method="post" id="payment-form">
+          <div class="form-row">
+            <label for="card-element">
+              クレジット・デビットカード番号を入力してください。
+            </label>
+            <div id="card-element">
+              <!-- Stripe Element がここに入ります。 -->
+            </div>
+            
+            <!-- Element のエラーを入れます。 -->
+            <div id="card-errors" role="alert"></div>
+          </div>
+        
+          <button>お支払い</button>
+        </form>
+      </div>
+    </section>
+  </body>
+
+  <script type="text/javascript">
+    // Create an instance of the Stripe object with your publishable API key
+    var stripe = Stripe("pk_test_51IJvhOCQVp6bOhLZOtxy7y5v9Uw4AwwudtDrcZxUpQchvghMBT0iogAQoeaQkS48Wx1gSo9bVoz54yycGNFGF47000xBoRQKeH");
+    var elements = stripe.elements();
+
+    // Element作成時に options から スタイルを調整できます.
+    var style = {
+      base: {
+        // ここでStyleの調整をします。
+        fontSize: '16px',
+        color: "#32325d",
+        backgroundColor: "#F8F8FF",
+        lineHeight: "40px",
+      }
+    };
+
+    // card Element のインスタンスを作成
+    var card = elements.create('card', {style: style});
+
+    // マウント
+    card.mount('#card-element');
+
+    card.addEventListener('change', function(event) {
+      var displayError = document.getElementById('card-errors');
+      if (event.error) {
+        displayError.textContent = event.error.message;
+      } else {
+        displayError.textContent = '';
+      }
+    });
+
+    var form = document.getElementById('payment-form');
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      stripe.createToken(card).then(function(result) {
+        if (result.error) {
+          // エラー表示.
+          var errorElement = document.getElementById('card-errors');
+          errorElement.textContent = result.error.message;
+        } else {
+          // トークンをサーバに送信
+          stripeTokenHandler(result.token);
+        }
+      });
+    });
+
+    function stripeTokenHandler(token) {
+      // tokenをフォームへ包含し送信
+      var form = document.getElementById('payment-form');
+      var hiddenInput = document.createElement('input');
+      hiddenInput.setAttribute('type', 'hidden');
+      hiddenInput.setAttribute('name', 'stripeToken');
+      hiddenInput.setAttribute('value', token.id);
+      form.appendChild(hiddenInput);
+
+      // Submit します
+      form.submit();
+    }
+  </script>
+</html>
