@@ -15,22 +15,8 @@
       </div>
     </section>
     <section>
-      <div class="form">
-        <form action="/charge" method="post" id="payment-form">
-          <div class="form-row">
-            <label for="card-element">
-              クレジット・デビットカード番号を入力してください。
-            </label>
-            <div id="card-element">
-              <!-- Stripe Element がここに入ります。 -->
-            </div>
-            
-            <!-- Element のエラーを入れます。 -->
-            <div id="card-errors" role="alert"></div>
-          </div>
-        
-          <button>お支払い</button>
-        </form>
+      <div id="payment-request-button">
+        <!-- Stripe Element がここに挿入されます. -->
       </div>
     </section>
   </body>
@@ -40,59 +26,49 @@
     var stripe = Stripe("pk_test_51IJvhOCQVp6bOhLZOtxy7y5v9Uw4AwwudtDrcZxUpQchvghMBT0iogAQoeaQkS48Wx1gSo9bVoz54yycGNFGF47000xBoRQKeH");
     var elements = stripe.elements();
 
-    // Element作成時に options から スタイルを調整できます.
-    var style = {
-      base: {
-        // ここでStyleの調整をします。
-        fontSize: '16px',
-        color: "#32325d",
-        backgroundColor: "#F8F8FF",
-        lineHeight: "40px",
-      }
-    };
+    var paymentRequest = stripe.paymentRequest({
+      country: 'JP',
+      currency: 'jpy',
+      total: {
+        label: '合計（デモ）',
+        amount: 1000,
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
 
-    // card Element のインスタンスを作成
-    var card = elements.create('card', {style: style});
+    var prButton = elements.create('paymentRequestButton', {
+      paymentRequest: paymentRequest,
+    });
 
-    // マウント
-    card.mount('#card-element');
-
-    card.addEventListener('change', function(event) {
-      var displayError = document.getElementById('card-errors');
-      if (event.error) {
-        displayError.textContent = event.error.message;
+    // Payment Request APIが使えるかをチェックする.
+    paymentRequest.canMakePayment().then(function(result) {
+      if (result) {
+        prButton.mount('#payment-request-button');
       } else {
-        displayError.textContent = '';
+        console.log("cannot make payment-request-button");
+        // document.getElementById('payment-request-button').style.display = 'none';
       }
     });
 
-    var form = document.getElementById('payment-form');
-    form.addEventListener('submit', function(event) {
-      event.preventDefault();
-
-      stripe.createToken(card).then(function(result) {
-        if (result.error) {
-          // エラー表示.
-          var errorElement = document.getElementById('card-errors');
-          errorElement.textContent = result.error.message;
+    paymentRequest.on('token', function(ev) {
+      console.log( JSON.stringify({token: ev.token.id}) );
+      debugger;
+      // ここでトークンをサーバへ送ります。決済の処理はサーバサイド
+      fetch('/charges', {
+        method: 'POST',
+        body: JSON.stringify({token: ev.token.id}),
+        headers: {'content-type': 'application/json'},
+      })
+      .then(function(response) {
+        if (response.ok) {
+          // ブラウザ側へ決済が成功したかを伝え、ブラウザ閉じる
+          ev.complete('success');
         } else {
-          // トークンをサーバに送信
-          stripeTokenHandler(result.token);
+          // 決済が失敗した場合は、再度決済画面を表示するかエラーを表示する
+          ev.complete('fail');
         }
       });
     });
-
-    function stripeTokenHandler(token) {
-      // tokenをフォームへ包含し送信
-      var form = document.getElementById('payment-form');
-      var hiddenInput = document.createElement('input');
-      hiddenInput.setAttribute('type', 'hidden');
-      hiddenInput.setAttribute('name', 'stripeToken');
-      hiddenInput.setAttribute('value', token.id);
-      form.appendChild(hiddenInput);
-
-      // Submit します
-      form.submit();
-    }
   </script>
 </html>
