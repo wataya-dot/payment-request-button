@@ -44,6 +44,7 @@
     // Payment Request APIが使えるかをチェックする.
     paymentRequest.canMakePayment().then(function(result) {
       if (result) {
+        console.log('made payment-request-button')
         prButton.mount('#payment-request-button');
       } else {
         console.log("cannot make payment-request-button");
